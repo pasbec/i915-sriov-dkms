@@ -16,11 +16,29 @@ LSBRELEASE_MINOR    := $(shell var=$$(echo $(LSBRELEASE) | awk -F. '{x=$$2+0; pr
 LSBRELEASE_NAME     := $(shell lsb_release -is 2> /dev/null || cat /etc/*-release | grep '^ID=' | head -n1 | cut -d '=' -f2 | xargs)
 LSBRELEASE_DEFINE   := $(shell var=$(LSBRELEASE_NAME); var=$$(echo $$var | sed 's/-/_/' | awk '{print toupper($$0)}'); echo RELEASE_$${var:-EMPTY})
 
-# Option to override latest GuC firmware (default is API 1.9.0 / v70.20.0)
-# https://patchwork.kernel.org/project/intel-gfx/patch/20240216211432.519411-1-John.C.Harrison@Intel.com/
-# https://gitlab.com/kernel-firmware/linux-firmware/-/merge_requests/156
+# GuC firmware / VF API
+# Try to auto-detect correct GuC firmware / VF API
+# TODO: How to get version directly from i915/adlp_guc_70.bin?
+GUCFIRMWARE_DMESG := $(shell dmesg | grep "GT0: GuC firmware" | awk '{print $$NF}')
 GUCFIRMWARE_MAJOR ?= $(shell echo $${GUCFIRMWARE_MAJOR:-1})
-GUCFIRMWARE_MINOR ?= $(shell echo $${GUCFIRMWARE_MINOR:-9})
+ifeq "$(GUCFIRMWARE_DMESG)" "70.13.1"
+    # GuC v70.13.1 / VF API 1.4.1
+    # https://gitlab.com/kernel-firmware/linux-firmware/-/commit/44a9510c94ac0334931b6c89dd240ffe5bf1e5fa
+    # pve-firmware >= 3.8-4
+    GUCFIRMWARE_MINOR ?= $(shell echo $${GUCFIRMWARE_MINOR:-4})
+else ifeq "$(GUCFIRMWARE_DMESG)" "70.20.0"
+    # GuC v70.20.0 / VF API 1.9.0
+    # https://gitlab.com/kernel-firmware/linux-firmware/-/commit/842afb27a53ccc04f5ec2f43c9bad5a661f718d4
+    # pve-firmware >= 3.10-1
+    GUCFIRMWARE_MINOR ?= $(shell echo $${GUCFIRMWARE_MINOR:-9})
+else ifeq "$(GUCFIRMWARE_DMESG)" "70.29.2"
+    # GuC v70.29.2 / VF API 1.13.4 (unsupperted?)
+    # https://gitlab.com/kernel-firmware/linux-firmware/-/commit/9889ca654ef0a251e633c43ce51e86ad911479b9
+    # pve-firmware >= 3.13-2
+    GUCFIRMWARE_MINOR ?= $(shell echo $${GUCFIRMWARE_MINOR:-13})
+endif
+GUCFIRMWARE_MINOR ?= $(shell echo $${GUCFIRMWARE_MINOR:-13})
+
 
 version:
 $(info KERNELRELEASE=$(KERNELRELEASE))
@@ -34,6 +52,7 @@ $(info LSBRELEASE_MAJOR=$(LSBRELEASE_MAJOR))
 $(info LSBRELEASE_MINOR=$(LSBRELEASE_MINOR))
 $(info LSBRELEASE_NAME=$(LSBRELEASE_NAME))
 $(info LSBRELEASE_DEFINE=$(LSBRELEASE_DEFINE))
+$(info GUCFIRMWARE_DMESG=$(GUCFIRMWARE_DMESG))
 $(info GUCFIRMWARE_MAJOR=$(GUCFIRMWARE_MAJOR))
 $(info GUCFIRMWARE_MINOR=$(GUCFIRMWARE_MINOR))
 
