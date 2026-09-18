@@ -1421,7 +1421,8 @@ static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
 	if (ret) {
 		drm_err(&i915->drm, "Scratch setup failed\n");
 		/* iounmap will also get called at remove, but meh */
-		iounmap(ggtt->gsm);
+		if (ggtt->gsm)
+			iounmap(ggtt->gsm);
 		return ret;
 	}
 
@@ -1442,7 +1443,8 @@ static void gen6_gmch_remove(struct i915_address_space *vm)
 {
 	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
 
-	iounmap(ggtt->gsm);
+	if (ggtt->gsm)
+		iounmap(ggtt->gsm);
 	free_scratch(vm);
 }
 
